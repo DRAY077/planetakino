@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Симуляція · Логіка тижнів Planeta Kino</title>
+  <style>
+    /* Standalone demo. Explains how the cinema week (Thu → Wed) bucketing
+       works and lets you move "today" around to see which bucket a premiere
+       lands in. No data from the real app — pure in-page simulation. */
+    :root {
+      --bg: #05080f;
+      --bg-card: #0b1120;
+      --bg-elev: #111a2e;
+      --border: rgba(148,163,184,0.18);
+      --border-accent: rgba(245,158,11,0.5);
+      --text: #f0f4ff;
+      --text-muted: #94a3b8;
+      --text-faint: #64748b;
+      --accent: #f59e0b;
+      --success: #22c55e;
+      --info: #60a5fa;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+    body { padding: 32px 24px 80px; max-width: 1240px; margin: 0 auto; }
+
+    h1 { font-size: 1.55rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+    h2 { font-size: 1.05rem; margin: 32px 0 12px; color: var(--text); }
+    p, li { color: var(--text-muted); line-height: 1.55; }
+    code { background: var(--bg-elev); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; color: var(--accent); }
+
+    .sub { color: var(--text-faint); font-size: 0.9rem; margin-top: 0; }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin: 8px 0 20px;
+    }
+    .controls label { color: var(--text-muted); font-size: 0.85rem; }
+    input[type="date"], input[type="number"], select {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-family: inherit;
+    }
+    input[type="date"]:focus { border-color: var(--accent); outline: none; }
+    button {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { border-color: var(--border-accent); }
+    button.primary { background: var(--accent); color: #1a1204; border-color: var(--accent); }
+
+    /* Timeline */
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+      margin: 14px 0 24px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .day {
+      background: var(--bg-elev);
+      padding: 10px 8px;
+      min-height: 72px;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      font-size: 0.75rem;
+      position: relative;
+      border-top: 3px solid transparent;
+    }
+    .day.thu { border-top-color: var(--accent); }
+    .day.today { background: rgba(245,158,11,0.12); }
+    .day.today::after {
+      content: 'сьогодні';
+      position: absolute; bottom: 4px;
+      font-size: 0.62rem; color: var(--accent);
+      font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .day__dow { color: var(--text-faint); letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.62rem; margin-bottom: 2px; }
+    .day__num { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+    .day__mon { font-size: 0.62rem; color: var(--text-faint); }
+    .day__dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--info); margin-top: 4px;
+    }
+
+    /* Week buckets */
+    .buckets { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 18px; }
+    .bucket {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .bucket__head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .bucket__name { font-weight: 700; color: var(--text); font-size: 0.9rem; }
+    .bucket__range { color: var(--text-faint); font-size: 0.74rem; }
+    .bucket.now .bucket__name { color: var(--accent); }
+    .bucket.next .bucket__name { color: var(--info); }
+    .bucket ul { list-style: none; margin: 0; padding: 0; }
+    .bucket li {
+      font-size: 0.82rem; color: var(--text-muted);
+      padding: 4px 0; border-bottom: 1px dashed rgba(148,163,184,0.1);
+      display: flex; justify-content: space-between; gap: 8px;
+    }
+    .bucket li:last-child { border-bottom: 0; }
+    .bucket li span.date { color: var(--text-faint); font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; }
+    .bucket.empty li { color: var(--text-faint); font-style: italic; }
+
+    /* Status pill */
+    .pill {
+      display: inline-block; padding: 2px 9px; border-radius: 10px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+      border: 1px solid;
+    }
+    .pill.running { background: rgba(34,197,94,0.12); color: #4ade80; border-color: rgba(34,197,94,0.3); }
+    .pill.soon    { background: rgba(96,165,250,0.12); color: #60a5fa; border-color: rgba(96,165,250,0.3); }
+    .pill.later   { background: rgba(148,163,184,0.1);  color: var(--text-faint); border-color: var(--border); }
+
+    /* Code block */
+    pre {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      color: #cbd5e1;
+      font-size: 0.8rem;
+      line-height: 1.55;
+    }
+    pre .hi { color: var(--accent); }
+    pre .cm { color: var(--text-faint); font-style: italic; }
+
+    .link-back {
+      display: inline-block; margin-bottom: 16px;
+      color: var(--text-muted); text-decoration: none;
+      font-size: 0.82rem;
+    }
+    .link-back:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <a class="link-back" href="./index.html">← до дашборду</a>
+  <h1>Симуляція: як фільми розкладаються по тижнях</h1>
+  <p class="sub">Planeta Kino оновлює репертуар щочетверга. Тиждень прокату = <strong>чт → сер</strong> (7 днів). Нижче можна рухати «сьогодні» і бачити, куди потрапляє кожна прем'єра.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Правило в одному реченні</h2>
+    <p style="margin-top:0;">
+      Для будь-якої дати <code>d</code> беремо її <em>четвер-власник</em>:
+      відкочуємо <code>d</code> назад до останнього четверга (якщо сьогодні нд/пн/вт/ср —
+      це четвер минулого кіно-тижня; якщо чт/пт/сб — це сам цей четвер). Усі фільми,
+      чий <code>premiere_date</code> приземляється на той самий четвер-власник,
+      належать до одного «тижня» у фільтрі «Скоро».
+    </p>
+    <pre><span class="cm">// Thu = 4 в нотації JavaScript getDay()</span>
+function <span class="hi">getThursdayOfWeek</span>(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  let diff = d.getDay() - 4;
+  if (diff &lt; 0) diff += 7;   <span class="cm">// нд/пн/вт/ср → повертаємось на минулий чт</span>
+  d.setDate(d.getDate() - diff);
+  return d;
+}</pre>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Контролі</h2>
+    <div class="controls">
+      <label>Симулюємо «сьогодні»:
+        <input type="date" id="sim-today" />
+      </label>
+      <button onclick="stepDays(-1)" title="Попередній день">−1 д</button>
+      <button onclick="stepDays(1)"  title="Наступний день">+1 д</button>
+      <button onclick="stepDays(-7)">−1 тиж</button>
+      <button onclick="stepDays(7)">+1 тиж</button>
+      <button class="primary" onclick="resetToReal()">↺ сьогодні (реальне)</button>
+      <span style="margin-left:auto; color:var(--text-faint); font-size:0.85rem;">
+        Четвер-власник: <strong id="owning-thu" style="color:var(--accent);">—</strong>
+      </span>
+    </div>
+    <div class="timeline" id="timeline"></div>
+    <p style="margin:0; font-size:0.8rem;">
+      Оранжева лінія зверху = четвер (початок кіно-тижня). Блакитна крапка = є прем'єра цього дня.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">4 наступні тижні та їхні фільми</h2>
+    <p>Це демо-фільми — натисни <em>+1 тиж</em> чи обери іншу дату, щоб побачити, як вони переходять із <span class="pill soon">Скоро</span> у <span class="pill running">В прокаті</span>.</p>
+    <div class="buckets" id="buckets"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Чому саме четвер?</h2>
+    <ul>
+      <li>Дистриб'ютори світового кіно синхронно випускають фільми у «cinema week», яка в Україні традиційно стартує у четвер.</li>
+      <li>Вкладка <strong>«В прокаті»</strong> у нашому дашборді показує фільми, які вже мають сеанс (<code>section === "now"</code>) — незалежно від тижня.</li>
+      <li>Вкладка <strong>«Скоро»</strong> показує все з <code>section === "soon"</code> і дозволяє звузити до одного тижня через пігулки нагорі. Вони перераховуються динамічно від сьогоднішнього четверга-власника.</li>
+      <li>Якщо прем'єра минула, а фільм ще не отримав сеанс — у нашому статусі він стане <code>running</code> (компутабельний з дати), тож фільтр «Скоро» його вже не зачепить.</li>
+    </ul>
+  </div>
+
+  <script>
+    // ─── Pure cinema-week math (independent of the real app) ─────────────────
+    function getThursdayOfWeek(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      let diff = d.getDay() - 4;
+      if (diff < 0) diff += 7;
+      d.setDate(d.getDate() - diff);
+      return d;
+    }
+    function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+    // Local-time YYYY-MM-DD (avoid toISOString() which shifts east-of-UTC users a day back).
+    function fmtISO(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    function fmtShort(d) {
+      const m = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
+      return `${d.getDate()} ${m[d.getMonth()]}`;
+    }
+
+    // ─── Fake movie catalogue (no real scraping) ─────────────────────────────
+    //   Dates are computed relative to the real "today" so the demo always has
+    //   something in the next few weeks no matter when the user opens the page.
+    const REAL_TODAY = new Date();
+    REAL_TODAY.setHours(0, 0, 0, 0);
+    function offsetDate(days) { return addDays(REAL_TODAY, days); }
+
+    const MOVIES = [
+      { title: 'Сонце у кишені',        date: offsetDate(-10) },
+      { title: 'Остання станція',       date: offsetDate(-3) },
+      { title: 'Коди та ключі',         date: offsetDate(0) },
+      { title: 'Нічне місто',           date: offsetDate(2) },
+      { title: 'Діти вітру',            date: offsetDate(6) },
+      { title: 'Переправа',             date: offsetDate(8) },
+      { title: 'Остання вечеря героя',  date: offsetDate(13) },
+      { title: 'Стіна',                 date: offsetDate(15) },
+      { title: 'Горизонт подій',        date: offsetDate(21) },
+      { title: 'Лист до майбутньої',    date: offsetDate(27) },
+    ];
+
+    // ─── State ───────────────────────────────────────────────────────────────
+    let simToday = new Date(REAL_TODAY);
+
+    function setSimToday(d) {
+      simToday = new Date(d);
+      simToday.setHours(0, 0, 0, 0);
+      document.getElementById('sim-today').value = fmtISO(simToday);
+      render();
+    }
+
+    function stepDays(n) { setSimToday(addDays(simToday, n)); }
+    function resetToReal() { setSimToday(REAL_TODAY); }
+
+    document.getElementById('sim-today').addEventListener('change', e => {
+      if (e.target.value) setSimToday(new Date(e.target.value + 'T00:00:00'));
+    });
+
+    // ─── Renderers ───────────────────────────────────────────────────────────
+    function renderTimeline() {
+      const thu = getThursdayOfWeek(simToday);
+      const days = [];
+      for (let i = -3; i <= 10; i++) days.push(addDays(simToday, i));
+      const dowNames = ['нд','пн','вт','ср','чт','пт','сб'];
+      const html = days.slice(0, 7).map(d => {
+        const isThu = d.getDay() === 4;
+        const isToday = fmtISO(d) === fmtISO(simToday);
+        const hasMovie = MOVIES.some(m => fmtISO(m.date) === fmtISO(d));
+        return `
+          <div class="day ${isThu ? 'thu' : ''} ${isToday ? 'today' : ''}">
+            <div class="day__dow">${dowNames[d.getDay()]}</div>
+            <div class="day__num">${d.getDate()}</div>
+            <div class="day__mon">${fmtShort(d).split(' ')[1]}</div>
+            ${hasMovie ? '<div class="day__dot" title="прем\'єра"></div>' : ''}
+          </div>`;
+      }).join('');
+      document.getElementById('timeline').innerHTML = html;
+      document.getElementById('owning-thu').textContent = fmtISO(thu) + ' (' + fmtShort(thu) + ')';
+    }
+
+    function renderBuckets() {
+      const baseThu = getThursdayOfWeek(simToday);
+      const buckets = [];
+      for (let i = 0; i < 4; i++) {
+        const start = addDays(baseThu, i * 7);
+        const end   = addDays(start, 6);
+        buckets.push({ idx: i, start, end, movies: [] });
+      }
+      // Assign each movie to its owning week bucket (or "later").
+      const later = [];
+      for (const m of MOVIES) {
+        const thu = getThursdayOfWeek(m.date);
+        const bucket = buckets.find(b => fmtISO(b.start) === fmtISO(thu));
+        if (bucket) bucket.movies.push(m);
+        else if (m.date > addDays(baseThu, 27)) later.push(m);
+        // anything strictly before baseThu is "running" / already past — we skip it.
+      }
+
+      const labels = ['Цей тиждень', 'Наступний тиждень', 'Через 2 тижні', 'Через 3 тижні'];
+      const classes = ['now', 'next', '', ''];
+      const html = buckets.map((b, i) => {
+        const range = `${fmtShort(b.start)} – ${fmtShort(b.end)}`;
+        const items = b.movies.length
+          ? b.movies.map(m => `
+              <li>
+                <span>${m.title}</span>
+                <span class="date">${fmtISO(m.date)} <span class="pill soon">скоро</span></span>
+              </li>`).join('')
+          : '<li>— нічого —</li>';
+        return `
+          <div class="bucket ${classes[i]} ${b.movies.length ? '' : 'empty'}">
+            <div class="bucket__head">
+              <span class="bucket__name">${labels[i]}</span>
+              <span class="bucket__range">${range}</span>
+            </div>
+            <ul>${items}</ul>
+          </div>`;
+      }).join('');
+
+      const laterHtml = later.length ? `
+        <div class="bucket">
+          <div class="bucket__head">
+            <span class="bucket__name">Пізніше</span>
+            <span class="bucket__range">&gt; ${fmtShort(addDays(baseThu, 28))}</span>
+          </div>
+          <ul>${later.map(m => `<li><span>${m.title}</span><span class="date">${fmtISO(m.date)}</span></li>`).join('')}</ul>
+        </div>` : '';
+
+      // Movies already past are running — show them separately for clarity.
+      const running = MOVIES.filter(m => m.date < baseThu);
+      const runningHtml = running.length ? `
+        <div class="bucket">
+          <div class="bucket__head">
+            <span class="bucket__name" style="color:#4ade80;">В прокаті</span>
+            <span class="bucket__range">дата &lt; ${fmtShort(baseThu)}</span>
+          </div>
+          <ul>${running.map(m => `<li><span>${m.title}</span><span class="date">${fmtISO(m.date)} <span class="pill running">running</span></span></li>`).join('')}</ul>
+        </div>` : '';
+
+      document.getElementById('buckets').innerHTML = runningHtml + html + laterHtml;
+    }
+
+    function render() { renderTimeline(); renderBuckets(); }
+
+    setSimToday(REAL_TODAY);
+  </script>
+</body>
+</html>

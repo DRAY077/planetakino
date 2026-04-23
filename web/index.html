@@ -1713,14 +1713,10 @@
         <div class="filter-row" id="rating-chips"></div>
       </div>
 
-      <!-- Week filter (only for soon tab) -->
+      <!-- Week filter (only for soon tab) — pills rebuilt dynamically from today's Thursday. -->
       <div id="week-filter" style="display:none; flex-wrap:wrap; gap:8px; align-items:center;">
-        <span class="section-heading">Тиждень:</span>
-        <button class="week-pill active" data-week="all" onclick="setWeek('all')">Всі</button>
-        <button class="week-pill" data-week="0" onclick="setWeek('0')">Цей тиждень</button>
-        <button class="week-pill" data-week="1" onclick="setWeek('1')">Наступний тиждень</button>
-        <button class="week-pill" data-week="2" onclick="setWeek('2')">Через 2 тижні</button>
-        <button class="week-pill" data-week="later" onclick="setWeek('later')">Пізніше</button>
+        <span class="section-heading" data-i18n="filter.week">Тиждень:</span>
+        <div id="week-pills" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
       </div>
     </div>
 
@@ -1955,20 +1951,45 @@
 
     // Cinema week = Thursday → Wednesday
     // Today: 2026-04-23 = Thursday → week 0 starts today
-    function getCinemaWeekBounds() {
-      const today = new Date(2026, 3, 23); // April 23 2026 = Thursday
-      // Week 0: Thu Apr 23 → Wed Apr 29
-      // Week 1: Thu Apr 30 → Wed May 6
-      // Week 2: Thu May 7  → Wed May 13
+    // ─── Cinema week (Thu → Wed) ──────────────────────────────────────────────
+    // Planeta Kino's release calendar runs Thursday-to-Wednesday. A movie whose
+    // premiere lands on a Thursday belongs to that week's bucket and stays there
+    // through the following Wednesday. We rewind any date to its owning Thursday.
+    function getThursdayOfWeek(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      const day = d.getDay();          // 0=Sun … 6=Sat
+      let diff = day - 4;              // 4 = Thursday
+      if (diff < 0) diff += 7;         // Sun/Mon/Tue/Wed → previous Thu
+      d.setDate(d.getDate() - diff);
+      return d;
+    }
+
+    // Build N cinema-weeks starting from the Thursday that owns "today".
+    function getCinemaWeekBounds(count = 4) {
+      const now = new Date();
+      const baseThursday = getThursdayOfWeek(now);
       const weeks = [];
-      for (let i = 0; i < 3; i++) {
-        const start = new Date(today);
-        start.setDate(today.getDate() + i * 7);
+      for (let i = 0; i < count; i++) {
+        const start = new Date(baseThursday);
+        start.setDate(baseThursday.getDate() + i * 7);
         const end = new Date(start);
         end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
         weeks.push({ start, end });
       }
       return weeks;
+    }
+
+    // Localised short label for a cinema-week: "Цей тиждень (24 кві – 30 кві)".
+    function getCinemaWeekLabel(weekStart, idx) {
+      const monthsShort = ['січ','лют','бер','кві','тра','чер','лип','сер','вер','жов','лис','гру'];
+      const end = new Date(weekStart);
+      end.setDate(weekStart.getDate() + 6);
+      const range = `${weekStart.getDate()} ${monthsShort[weekStart.getMonth()]} – ${end.getDate()} ${monthsShort[end.getMonth()]}`;
+      if (idx === 0) return `Цей тиждень (${range})`;
+      if (idx === 1) return `Наступний тиждень (${range})`;
+      return range;
     }
 
     function getMovieWeek(movie) {
@@ -1978,8 +1999,6 @@
       for (let i = 0; i < weeks.length; i++) {
         if (date >= weeks[i].start && date <= weeks[i].end) return String(i);
       }
-      const lastEnd = weeks[weeks.length - 1].end;
-      if (date > lastEnd) return 'later';
       return 'later';
     }
 
@@ -2883,6 +2902,24 @@
     }
 
     // ─── Tab & filter controls ─────────────────────────────────────────────────
+    // Rebuild pills every time the user enters the Soon tab so labels stay
+    // accurate as the Thursday rolls forward. 4 weeks of lookahead + "later" +
+    // "Всі" covers the worst-case Planeta Kino schedule horizon.
+    function rebuildWeekPills() {
+      const host = document.getElementById('week-pills');
+      if (!host) return;
+      const bounds = getCinemaWeekBounds(4);
+      const pills = [];
+      pills.push(`<button class="week-pill ${currentWeek === 'all' ? 'active' : ''}" data-week="all" onclick="setWeek('all')">Всі</button>`);
+      const fmtLocal = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      bounds.forEach((w, i) => {
+        const label = getCinemaWeekLabel(w.start, i);
+        pills.push(`<button class="week-pill ${currentWeek === String(i) ? 'active' : ''}" data-week="${i}" onclick="setWeek('${i}')" title="${fmtLocal(w.start)} → ${fmtLocal(w.end)}">${escHtml(label)}</button>`);
+      });
+      pills.push(`<button class="week-pill ${currentWeek === 'later' ? 'active' : ''}" data-week="later" onclick="setWeek('later')">Пізніше</button>`);
+      host.innerHTML = pills.join('');
+    }
+
     function setTab(tab) {
       currentTab = tab;
       currentWeek = 'all';
@@ -2893,6 +2930,7 @@
 
       const weekFilter = document.getElementById('week-filter');
       weekFilter.style.display = tab === 'soon' ? 'flex' : 'none';
+      if (tab === 'soon') rebuildWeekPills();
 
       // Reset week pills
       document.querySelectorAll('.week-pill').forEach(p => {

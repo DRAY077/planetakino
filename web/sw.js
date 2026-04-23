@@ -8,7 +8,7 @@
  *   - Everything else                          → network-first.
  */
 
-const CACHE_VERSION = 'pk-v0.3.1';
+const CACHE_VERSION = 'pk-v0.3.2';
 const APP_SHELL = [
   './',
   './index.html',
