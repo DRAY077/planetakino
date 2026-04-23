@@ -2,8 +2,21 @@
 <html lang="uk" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Планета Кіно — Одеса</title>
+
+  <!-- PWA manifest + iOS + theming. When running as the native PyWebView
+       desktop app these are no-ops (no SW support). When served from
+       GH Pages they power "Install app" / "Add to Home Screen". -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="application-name" content="PlanetaKino" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="PlanetaKino" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet" />
@@ -880,6 +893,138 @@
       .movie-grid.grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
     }
 
+    /* ─── List view ─────────────────────────────────────────────────────
+       Dense, horizontal rows for cinema-manager workflow. One row per film:
+       thumbnail (48×72) → title block → meta → status tag → action buttons. */
+    .movie-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .movie-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 2.2fr) minmax(0, 1fr) auto auto;
+      gap: 14px;
+      align-items: center;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+    }
+    .movie-row:hover {
+      border-color: var(--text-faint);
+      transform: translateX(2px);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    }
+    .movie-row__poster {
+      width: 72px;
+      height: 104px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--bg-secondary);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .movie-row__poster img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .movie-row__poster .poster-fallback {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-faint); font-size: 0.6rem; text-align: center; padding: 4px;
+    }
+    .movie-row__title {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .movie-row__title-uk {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .movie-row__title-orig {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .movie-row__title-chips {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .movie-row__title-chips .chip,
+    .movie-row__title-chips .format-badge {
+      font-size: 0.58rem;
+      padding: 2px 6px;
+    }
+    .movie-row__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      min-width: 0;
+    }
+    .movie-row__meta strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .movie-row__status {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+      min-width: 110px;
+    }
+    .movie-row__status .status-tag {
+      position: static;
+      font-size: 0.56rem;
+    }
+    .movie-row__status .dcp-strip {
+      margin: 0;
+      font-size: 0.62rem;
+      padding: 3px 8px;
+    }
+    .movie-row__actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .movie-row:hover .movie-row__actions { opacity: 1; }
+    .movie-row .age-badge {
+      position: absolute;
+      top: 4px; right: 4px;
+      font-size: 0.54rem;
+      padding: 2px 4px;
+    }
+    @media (max-width: 820px) {
+      .movie-row {
+        grid-template-columns: 56px 1fr auto;
+        gap: 10px;
+      }
+      .movie-row__poster { width: 56px; height: 82px; }
+      .movie-row__meta { display: none; }
+      .movie-row__status { min-width: auto; }
+      .movie-row__actions { display: none; }
+    }
+
     /* Per-card hover action buttons */
     .card-actions {
       position: absolute;
@@ -1355,6 +1500,9 @@
       </div>
       <div class="status-pill" id="status-pill" data-state="ok">Стабільний стан</div>
       <select id="cinema-select" class="native-select" onchange="onCinemaChange()" title="Кінотеатр"></select>
+      <button id="install-app-btn" class="btn btn--sm btn--primary" onclick="installApp()" style="display:none;" title="Встановити як app">
+        ⬇ Встановити
+      </button>
       <button class="btn btn--sm btn--ghost" onclick="openSettings()" title="Налаштування (⌘,)">⚙</button>
     </div>
   </div>
@@ -1429,7 +1577,19 @@
 
       <!-- Sort + grid-size + filters row -->
       <div class="filter-row" id="control-row">
-        <span class="section-heading">Сітка:</span>
+        <span class="section-heading">Вигляд:</span>
+        <div class="segmented" id="view-mode">
+          <button data-view="grid" class="active" onclick="setViewMode('grid')" title="Сітка карток">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Сітка
+          </button>
+          <button data-view="list" onclick="setViewMode('list')" title="Список рядків">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Список
+          </button>
+        </div>
+
+        <span class="section-heading" id="grid-size-label" style="margin-left:8px;">Сітка:</span>
         <div class="segmented" id="grid-size">
           <button data-size="2" onclick="setGridSize(2)">2</button>
           <button data-size="3" onclick="setGridSize(3)">3</button>
@@ -1663,6 +1823,7 @@
     let activeFormats = new Set();
     let activeRatings = new Set();
     let activeStatuses = new Set();  // play-status filter: running / today / pre_premiere / upcoming_soon / upcoming
+    let viewMode = 'grid';  // 'grid' | 'list'
     let enTitleCards = new Set();     // per-card "show original as primary" flag
     let pendingDeleteId = null;       // for two-step delete confirm
     let previousMovieIds = new Set(); // for new-movie notifications
@@ -1891,8 +2052,13 @@
         return;
       }
 
-      const cards = movies.map((m, idx) => buildCard(m, idx)).join('');
-      app.innerHTML = `<div class="movie-grid grid-${gridSize}">${cards}</div>`;
+      if (viewMode === 'list') {
+        const rows = movies.map((m, idx) => buildListRow(m, idx)).join('');
+        app.innerHTML = `<div class="movie-list">${rows}</div>`;
+      } else {
+        const cards = movies.map((m, idx) => buildCard(m, idx)).join('');
+        app.innerHTML = `<div class="movie-grid grid-${gridSize}">${cards}</div>`;
+      }
       attachCardHandlers();
     }
 
@@ -1987,6 +2153,67 @@
             ${allChips ? `<div class="chips">${allChips}</div>` : ''}
             ${buildDcpStrip(m.dcp)}
           </div>
+        </div>`;
+    }
+
+    // ─── List view row (dense single-line layout) ────────────────────────────
+    function buildListRow(m, idx) {
+      const showEn = enTitleCards.has(m.movie_id);
+      const ukTitle = decodeHtml(m.title_uk) || '';
+      const origTitle = decodeHtml(m.title_original) || '';
+      const title = showEn && origTitle ? origTitle : ukTitle;
+      const sub   = showEn && origTitle ? ukTitle : origTitle;
+      const date = formatDateUK(m.premiere_date);
+      const duration = formatDuration(m.duration_min);
+      const dateLabel = m.section === 'now' ? 'В прокаті з' : 'Прем\'єра';
+
+      const posterHtml = m.poster_url
+        ? `<img src="${escAttr(m.poster_url)}" alt="${escAttr(title)}" loading="lazy"
+             onerror="this.parentElement.innerHTML='<div class=\\'poster-fallback\\'>${escAttr(title.slice(0, 40))}</div>'" />`
+        : `<div class="poster-fallback">${escHtml(title.slice(0, 40))}</div>`;
+
+      const ageBadge = m.age_rating ? `<div class="age-badge">${m.age_rating}</div>` : '';
+
+      const st = computeStatus(m);
+      const statusTag = `<div class="status-tag" data-s="${escAttr(st.key)}" title="${escAttr(st.tooltip)}">${escHtml(st.label)}</div>`;
+
+      const genreChips = (m.genres || []).slice(0, 2).map(g => `<span class="chip chip-genre">${escHtml(g)}</span>`).join('');
+      const formatChips = (m.formats || []).slice(0, 3).map(f => `<span class="${formatBadgeClass(f)}">${escHtml(f)}</span>`).join('');
+      const allChips = genreChips + formatChips;
+
+      const metaLines = [];
+      if (date) metaLines.push(`<span>${dateLabel}: <strong>${escHtml(date)}</strong></span>`);
+      if (duration) metaLines.push(`<span>${escHtml(duration)}</span>`);
+      const metaHtml = metaLines.length ? metaLines.join('<br>') : '<span style="color:var(--text-faint);">—</span>';
+
+      const actions = hasBridge() ? `
+        <div class="movie-row__actions">
+          <button class="card-action-btn" data-card-act="en"      data-id="${m.movie_id}" title="Мова назви">EN</button>
+          <button class="card-action-btn" data-card-act="refresh" data-id="${m.movie_id}" title="Оновити">↻</button>
+          <button class="card-action-btn" data-card-act="open"    data-id="${m.movie_id}" title="Сайт">↗</button>
+          <button class="card-action-btn danger" data-card-act="delete" data-id="${m.movie_id}" data-confirm="${pendingDeleteId === m.movie_id ? '1' : '0'}"
+                  title="${pendingDeleteId === m.movie_id ? 'Підтвердити' : 'Видалити'}">${pendingDeleteId === m.movie_id ? '✓?' : '×'}</button>
+        </div>` : '';
+
+      const dcpStrip = m.dcp ? buildDcpStrip(m.dcp) : '';
+
+      return `
+        <div class="movie-row" data-id="${m.movie_id}" data-url="${escAttr(m.url)}" title="${escAttr(title)}">
+          <div class="movie-row__poster">
+            ${posterHtml}
+            ${ageBadge}
+          </div>
+          <div class="movie-row__title">
+            <div class="movie-row__title-uk">${escHtml(title)}</div>
+            ${sub && sub !== title ? `<div class="movie-row__title-orig">${escHtml(sub)}</div>` : ''}
+            ${allChips ? `<div class="movie-row__title-chips">${allChips}</div>` : ''}
+          </div>
+          <div class="movie-row__meta">${metaHtml}</div>
+          <div class="movie-row__status">
+            ${statusTag}
+            ${dcpStrip}
+          </div>
+          ${actions}
         </div>`;
     }
 
@@ -2141,9 +2368,18 @@
           data = await BRIDGE().list_movies();
           if (data?.error) throw new Error(data.error);
         } else {
-          const res = await fetch('../data/movies.json');
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          data = await res.json();
+          // Browser / PWA fallback — try multiple paths so the same index.html
+          // works when served from GH Pages root, from a subpath, or locally.
+          const candidates = ['movies.json', './movies.json', 'data/movies.json', '../data/movies.json'];
+          let lastErr;
+          for (const url of candidates) {
+            try {
+              const res = await fetch(url, { cache: 'no-store' });
+              if (res.ok) { data = await res.json(); break; }
+              lastErr = new Error(`${url} → HTTP ${res.status}`);
+            } catch (e) { lastErr = e; }
+          }
+          if (!data) throw lastErr || new Error('movies.json не знайдено');
         }
       } catch (err) {
         showError(err);
@@ -2357,7 +2593,21 @@ python3 -m http.server 8000</code>
     function toggleRating(v) { if (activeRatings.has(v)) activeRatings.delete(v); else activeRatings.add(v); rebuildFilterChips(); render(); }
     function toggleStatus(v) { if (activeStatuses.has(v)) activeStatuses.delete(v); else activeStatuses.add(v); rebuildFilterChips(); render(); }
 
-    // ─── Grid size + sort ─────────────────────────────────────────────────────
+    // ─── View mode + grid size + sort ─────────────────────────────────────────
+    function setViewMode(mode) {
+      viewMode = mode === 'list' ? 'list' : 'grid';
+      document.querySelectorAll('#view-mode button').forEach(b =>
+        b.classList.toggle('active', b.dataset.view === viewMode));
+      // Hide grid-size chooser in list mode — not applicable.
+      const gsLabel = document.getElementById('grid-size-label');
+      const gs = document.getElementById('grid-size');
+      if (gsLabel) gsLabel.style.display = viewMode === 'list' ? 'none' : '';
+      if (gs)      gs.style.display      = viewMode === 'list' ? 'none' : '';
+      if (hasBridge()) saveSetting('view_mode', viewMode);
+      else { try { localStorage.setItem('pk_view_mode', viewMode); } catch {} }
+      render();
+    }
+
     function setGridSize(n) {
       gridSize = n;
       document.querySelectorAll('#grid-size button').forEach(b =>
@@ -2534,11 +2784,12 @@ python3 -m http.server 8000</code>
       document.querySelectorAll('[data-theme][onclick^="setTheme"]').forEach(b => {
         b.classList.toggle('active', b.dataset.theme === (settings.theme || document.documentElement.getAttribute('data-theme')));
       });
-      // grid + sort
+      // grid + sort + view mode
       if (settings.grid_size) { gridSize = settings.grid_size;
         document.querySelectorAll('#grid-size button').forEach(b =>
           b.classList.toggle('active', parseInt(b.dataset.size) === gridSize));
       }
+      if (settings.view_mode) { setViewMode(settings.view_mode); }
       if (settings.sort_by) { sortBy = settings.sort_by; byId('sort-by').value = sortBy; }
       if (settings.sort_dir) { setSortDir(settings.sort_dir); }
 
@@ -2706,6 +2957,41 @@ python3 -m http.server 8000</code>
       openModalId = null;
     });
 
+    // ─── PWA: service worker + install prompt ────────────────────────────────
+    // Only active when served over http(s). In the native PyWebView app the
+    // page loads via file:// → navigator.serviceWorker is unavailable and this
+    // whole block quietly no-ops.
+    let deferredInstallPrompt = null;
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch((err) =>
+          console.warn('[pwa] SW register failed', err));
+      });
+    }
+    window.addEventListener('beforeinstallprompt', (ev) => {
+      ev.preventDefault();
+      deferredInstallPrompt = ev;
+      const btn = document.getElementById('install-app-btn');
+      if (btn) btn.style.display = '';
+    });
+    window.addEventListener('appinstalled', () => {
+      const btn = document.getElementById('install-app-btn');
+      if (btn) btn.style.display = 'none';
+      showToast('Встановлено', 'Планета Кіно тепер доступна як окремий app', 'success');
+    });
+    async function installApp() {
+      if (!deferredInstallPrompt) {
+        showToast('Встановлення', 'Браузер ще не готовий запропонувати встановлення. Спробуй пізніше або зроби «Додати на домашній екран» у меню браузера.', 'info');
+        return;
+      }
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      const btn = document.getElementById('install-app-btn');
+      if (btn) btn.style.display = 'none';
+      if (choice.outcome === 'accepted') showToast('Готово', 'Встановлено', 'success');
+    }
+
     // ─── Init ─────────────────────────────────────────────────────────────────
     (async () => {
       await waitForBridge(2500);
@@ -2716,6 +3002,12 @@ python3 -m http.server 8000</code>
           await populateCinemaSelect();
         } catch (err) { console.error('bridge init', err); }
         if (settings.theme) document.documentElement.setAttribute('data-theme', settings.theme);
+      } else {
+        // Browser / PWA mode — rehydrate view preference from localStorage.
+        try {
+          const stored = localStorage.getItem('pk_view_mode');
+          if (stored === 'list' || stored === 'grid') setViewMode(stored);
+        } catch {}
       }
       applySettingsToUi();
       await loadData();

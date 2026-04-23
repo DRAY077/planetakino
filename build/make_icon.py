@@ -150,14 +150,38 @@ def make_icns(master: Image.Image) -> Path:
     return out
 
 
+def make_pwa_icons(master: Image.Image) -> list[Path]:
+    """Produce PNG icons used by the PWA manifest (web/icons/)."""
+    pwa_dir = ROOT / "web" / "icons"
+    pwa_dir.mkdir(parents=True, exist_ok=True)
+    out = []
+    for size in (192, 512):
+        p = pwa_dir / f"icon-{size}.png"
+        master.resize((size, size), Image.LANCZOS).save(p, "PNG")
+        out.append(p)
+    # Maskable variant: inset the design 15% so the OS-chosen mask has safe area.
+    mask_size = 512
+    maskable = Image.new("RGBA", (mask_size, mask_size), NAVY)
+    inset = int(mask_size * 0.1)
+    inner = master.resize((mask_size - 2 * inset, mask_size - 2 * inset), Image.LANCZOS)
+    maskable.paste(inner, (inset, inset), inner)
+    p = pwa_dir / "icon-512-maskable.png"
+    maskable.save(p, "PNG")
+    out.append(p)
+    return out
+
+
 def main() -> int:
     master = draw_master(1024)
     png = make_png(master)
     ico = make_ico(master)
     icns = make_icns(master)
+    pwa = make_pwa_icons(master)
     print(f"✓ {png}")
     print(f"✓ {ico}")
     print(f"✓ {icns}")
+    for p in pwa:
+        print(f"✓ {p}")
     return 0
 
 

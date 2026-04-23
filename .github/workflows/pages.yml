@@ -1,0 +1,82 @@
+name: Deploy PWA to GitHub Pages
+
+# Runs the parser server-side (no local machine needed), publishes the result
+# as a static PWA to gh-pages. Triggers:
+#   - push to main            → redeploy UI
+#   - daily cron              → refresh movies.json
+#   - workflow_dispatch       → manual "Refresh now" button in the Actions tab
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "planetakino/**"
+      - ".github/workflows/pages.yml"
+      - "build/make_icon.py"
+      - "requirements.txt"
+  schedule:
+    - cron: "15 6 * * *"   # 06:15 UTC daily = 09:15 Kyiv
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Generate PWA icons
+        run: python build/make_icon.py
+
+      - name: Fetch planetakino.ua + export movies.json
+        run: |
+          python -m planetakino fetch --export
+          ls -la data/
+
+      - name: Assemble Pages site
+        run: |
+          mkdir -p public
+          cp -r web/* public/
+          cp data/movies.json public/movies.json
+          # Inject build timestamp + commit SHA into a banner file so the UI
+          # can show "last updated" without a separate API call.
+          python -c "
+          import json, subprocess, datetime, pathlib
+          sha = subprocess.check_output(['git','rev-parse','--short','HEAD']).decode().strip()
+          payload = {
+            'built_at': datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+            'commit': sha,
+            'version': open('planetakino/config.py').read().split('APP_VERSION = ')[1].split(chr(10))[0].strip().strip(chr(34)).strip(chr(39)),
+          }
+          pathlib.Path('public/build-info.json').write_text(json.dumps(payload, indent=2))
+          print(payload)
+          "
+          ls -la public/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -20,6 +20,9 @@ build/planetakino/
 build/icon/
 dist/
 
+# Generated at build/CI time
+web/icons/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -28,3 +31,4 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+.claude/
