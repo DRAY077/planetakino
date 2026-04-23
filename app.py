@@ -74,18 +74,29 @@ def _seed_export_if_missing() -> None:
         logging.getLogger(__name__).exception("seed export failed")
 
 
-def _find_free_port(preferred: int = 8765) -> int:
+def _find_free_port(preferred: int = 8765, host: str = "127.0.0.1") -> int:
     """Return an open TCP port, preferring ``preferred`` but falling back to OS-assigned."""
     for port in (preferred, preferred + 1, preferred + 2):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(("127.0.0.1", port))
+                s.bind((host, port))
                 return port
             except OSError:
                 continue
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
+        s.bind((host, 0))
         return s.getsockname()[1]
+
+
+def _is_remote_session() -> bool:
+    """True when running inside SSH or without a local display server."""
+    if os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_CLIENT") or os.environ.get("SSH_TTY"):
+        return True
+    # Linux / X11 / Wayland without any display means no local browser.
+    if sys.platform.startswith("linux"):
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            return True
+    return False
 
 
 def _make_browser_handler(web_dir: Path, data_dir: Path):
@@ -112,36 +123,67 @@ def _make_browser_handler(web_dir: Path, data_dir: Path):
     return Handler
 
 
-def run_browser_mode(log: logging.Logger) -> int:
-    """Serve web/ + data/movies.json over localhost and open the default browser."""
+def run_browser_mode(
+    log: logging.Logger,
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    open_browser: bool = True,
+) -> int:
+    """Serve web/ + data/movies.json over HTTP.
+
+    Over SSH / headless boxes pass ``host='0.0.0.0'`` and use SSH port
+    forwarding (``ssh -L 8765:localhost:8765 user@host``) to reach it from
+    your laptop. On a desktop box keep ``host='127.0.0.1'`` and let us open
+    the browser for you.
+    """
     web_dir = _resource_dir() / "web"
     data_dir = DATA_DIR
     if not (web_dir / "index.html").exists():
         log.error("frontend missing: %s", web_dir / "index.html")
         return 1
 
-    port = _find_free_port(8765)
+    port = _find_free_port(port, host=host)
     handler_cls = _make_browser_handler(web_dir, data_dir)
 
-    # ThreadingTCPServer so the SW fetch + data fetch don't block each other.
     class Server(socketserver.ThreadingTCPServer):
         allow_reuse_address = True
         daemon_threads = True
 
-    httpd = Server(("127.0.0.1", port), handler_cls)
-    url = f"http://127.0.0.1:{port}/"
-    log.info("Browser mode: serving %s → %s", web_dir, url)
+    httpd = Server((host, port), handler_cls)
+    local_url = f"http://{host if host != '0.0.0.0' else '127.0.0.1'}:{port}/"
+    log.info("Browser mode: serving %s", web_dir)
     log.info("Data: /movies.json → %s", data_dir / "movies.json")
 
     server_thread = threading.Thread(target=httpd.serve_forever, name="pk-http", daemon=True)
     server_thread.start()
 
-    try:
-        webbrowser.open(url, new=2)
-    except Exception:
-        log.exception("failed to open browser; open %s manually", url)
+    remote = _is_remote_session()
+    banner = [
+        "",
+        "  Planeta Kino Dashboard",
+        f"  Bind:     {host}:{port}",
+        f"  Local:    {local_url}",
+    ]
+    if remote:
+        # Give a copy-paste SSH command for port forwarding.
+        fwd = f"ssh -N -L {port}:localhost:{port} <your-user>@<this-host>"
+        banner += [
+            "",
+            "  Remote session detected (SSH / headless).",
+            "  On your laptop run:",
+            f"    {fwd}",
+            f"  Then open {local_url} in your browser.",
+        ]
+        open_browser = False
+    banner += ["", "  Ctrl-C to stop.", ""]
+    print("\n".join(banner))
 
-    print(f"\n  Planeta Kino Dashboard\n  → {url}\n  Ctrl-C to stop.\n")
+    if open_browser:
+        try:
+            webbrowser.open(local_url, new=2)
+        except Exception:
+            log.exception("failed to open browser; open %s manually", local_url)
+
     try:
         server_thread.join()
     except KeyboardInterrupt:
@@ -197,6 +239,23 @@ def main() -> int:
         help="Force browser mode (local HTTP + default browser). Use on Linux "
              "without PyQt/GTK, or when you prefer a real browser.",
     )
+    parser.add_argument(
+        "--host",
+        default=None,
+        help="Bind address for browser mode. 127.0.0.1 (default on desktop) or "
+             "0.0.0.0 for remote access. Over SSH 127.0.0.1 + port forwarding is safer.",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8765,
+        help="Preferred port for browser mode (default: 8765).",
+    )
+    parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Do not try to auto-open the browser. Implied over SSH.",
+    )
     args = parser.parse_args()
 
     _configure_logging()
@@ -205,14 +264,20 @@ def main() -> int:
 
     _seed_export_if_missing()
 
-    if args.browser:
-        return run_browser_mode(log)
+    # Default host: 127.0.0.1 locally, keep the same over SSH (expects port forwarding).
+    # Pass --host 0.0.0.0 explicitly to expose on network.
+    host = args.host or "127.0.0.1"
+
+    if args.browser or _is_remote_session():
+        if args.browser:
+            log.info("browser mode requested (--browser)")
+        else:
+            log.info("remote session detected (SSH / no DISPLAY); using browser mode")
+        return run_browser_mode(log, host=host, port=args.port, open_browser=not args.no_open)
 
     try:
         return run_webview_mode(log)
     except Exception as err:
-        # PyWebView raises WebViewException on Linux if neither GTK nor Qt is
-        # installed. Fall back to the browser so the user still sees something.
         msg = str(err)
         needs_fallback = (
             err.__class__.__name__ == "WebViewException"
@@ -228,7 +293,7 @@ def main() -> int:
                 "or GTK system packages (Debian/Ubuntu):\n"
                 "  sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1"
             )
-            return run_browser_mode(log)
+            return run_browser_mode(log, host=host, port=args.port, open_browser=not args.no_open)
         raise
 
 
