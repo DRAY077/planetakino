@@ -1,0 +1,95 @@
+name: Build native app
+
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pywebview pyinstaller pillow
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      - name: Build exe
+        run: |
+          python build/make_icon.py
+          python -m PyInstaller build/planetakino.spec --clean --noconfirm
+
+      - name: Compress portable zip
+        shell: pwsh
+        run: |
+          $version = python -c "from planetakino.config import APP_VERSION; print(APP_VERSION)"
+          Compress-Archive -Path "dist\PlanetaKino\*" -DestinationPath "dist\PlanetaKino-$version-win64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlanetaKino-windows
+          path: |
+            dist/PlanetaKino/
+            dist/PlanetaKino-*-win64.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PlanetaKino-*-win64.zip
+
+  build-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pywebview pyinstaller pillow
+
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+      - name: Build .app + .dmg
+        run: bash build/build_mac.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PlanetaKino-macos
+          path: |
+            dist/PlanetaKino.app
+            dist/PlanetaKino-*.dmg
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PlanetaKino-*.dmg

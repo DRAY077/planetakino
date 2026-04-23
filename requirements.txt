@@ -1,0 +1,8 @@
+requests>=2.28
+beautifulsoup4>=4.12
+pytest>=7.0
+
+# Native app packaging
+pywebview>=5.0
+pillow>=10.0
+pyinstaller>=6.0

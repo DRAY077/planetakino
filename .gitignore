@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# User data (must not leak)
+data/*.db
+data/*.db-*
+data/*.json
+data/app.log
+data/reports/
+data/exports/
+
+# PyInstaller build artifacts
+build/planetakino/
+build/icon/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
