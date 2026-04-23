@@ -1058,6 +1058,11 @@
     }
     .card-action-btn:hover { color: var(--accent); border-color: var(--border-accent); }
     .card-action-btn.danger:hover { color: #f87171; border-color: rgba(248,113,113,0.4); }
+    .card-action-btn.success {
+      color: #052e16;
+      background: #22c55e;
+      border-color: #22c55e;
+    }
     .card-action-btn[data-confirm="1"] { background: rgba(232,52,28,0.95); color: #fff; }
 
     /* DCP strip */
@@ -1082,6 +1087,88 @@
     .dcp-strip.status-waiting_key    { border-color: rgba(234,88,12,0.3);  color: #fb923c; }
     .dcp-strip.status-pending        { border-color: var(--border); color: var(--text-faint); }
     .dcp-strip.status-no_keys_needed { border-color: rgba(148,163,184,0.3); color: #94a3b8; }
+
+    /* Inline DCP edit row (mm:ss time + datetime + green checkmark) */
+    .dcp-edit {
+      display: grid;
+      grid-template-columns: 54px 1fr 26px;
+      gap: 6px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .dcp-edit__input {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.70rem;
+      padding: 4px 6px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+      letter-spacing: 0.02em;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+    [data-theme="light"] .dcp-edit__input { background: rgba(0,0,0,0.04); }
+    .dcp-edit__input::placeholder { color: var(--text-faint); opacity: 0.6; }
+    .dcp-edit__input:focus { border-color: var(--accent); background: rgba(245,158,11,0.06); }
+    .dcp-edit__input.filled { color: var(--text); }
+    .dcp-edit__input.no-keys {
+      color: #94a3b8;
+      font-style: italic;
+      background: rgba(148,163,184,0.08);
+    }
+    .dcp-edit__check {
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-faint);
+      font-size: 0.78rem;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 150ms ease;
+      padding: 0;
+    }
+    .dcp-edit__check:hover { color: var(--text); border-color: var(--border-accent); }
+    .dcp-edit__check.ready {
+      background: #22c55e;
+      border-color: #22c55e;
+      color: #052e16;
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.18);
+    }
+    .dcp-edit__check.ready:hover { background: #16a34a; border-color: #16a34a; }
+    .movie-row .dcp-edit { margin-top: 4px; }
+
+    /* Language switcher (segmented) */
+    .lang-switch {
+      display: inline-flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.02);
+      height: 30px;
+    }
+    [data-theme="light"] .lang-switch { background: rgba(0,0,0,0.02); }
+    .lang-switch button {
+      background: transparent;
+      color: var(--text-muted);
+      border: 0;
+      padding: 0 9px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      transition: all 120ms ease;
+    }
+    .lang-switch button + button { border-left: 1px solid var(--border); }
+    .lang-switch button:hover { color: var(--text); }
+    .lang-switch button.active {
+      background: var(--accent);
+      color: #1a1204;
+    }
 
     /* Movie-detail modal */
     .modal[open] {
@@ -1503,6 +1590,11 @@
       <button id="install-app-btn" class="btn btn--sm btn--primary" onclick="installApp()" style="display:none;" title="Встановити як app">
         ⬇ Встановити
       </button>
+      <div id="lang-switch" class="lang-switch" role="tablist" aria-label="UI language">
+        <button type="button" data-lang="uk" class="active" onclick="setUiLanguage('uk')" title="Українська">UK</button>
+        <button type="button" data-lang="ru" onclick="setUiLanguage('ru')" title="Русский">RU</button>
+        <button type="button" data-lang="en" onclick="setUiLanguage('en')" title="English">EN</button>
+      </div>
       <button class="btn btn--sm btn--ghost" onclick="openSettings()" title="Налаштування (⌘,)">⚙</button>
     </div>
   </div>
@@ -1967,6 +2059,344 @@
       return s;
     }
 
+    // ─── i18n: UI chrome translations (uk default, ru/en on demand) ──────────
+    // Movie titles, descriptions, genres come from planetakino.ua and stay in
+    // Ukrainian — this dict only translates the UI chrome (buttons, labels,
+    // tab names, filter headings, status labels, modal section titles).
+    const I18N = {
+      uk: {
+        "lang.name":           "Укр",
+        "lang.full":           "Українська",
+        "action.refresh":      "ОНОВИТИ",
+        "action.refresh_week": "ОНОВИТИ ТИЖДЕНЬ",
+        "action.sublime":      "SUBLIME",
+        "action.report":       "ЗВІТ",
+        "action.install":      "⬇ Встановити",
+        "action.settings":     "Налаштування",
+        "timer.uptime":        "Uptime",
+        "timer.next_refresh":  "Next refresh",
+        "status.stable":       "Стабільний стан",
+        "status.refreshing":   "Оновлення…",
+        "status.error":        "Помилка",
+        "tab.now":             "В кіно",
+        "tab.soon":            "Скоро",
+        "tab.all":             "Всі",
+        "tab.globally":        "Глобально",
+        "search.placeholder":  "Пошук за назвою…",
+        "filter.view":         "Вигляд:",
+        "filter.grid":         "Сітка",
+        "filter.list":         "Список",
+        "filter.grid_size":    "Сітка:",
+        "filter.sort":         "Сортування:",
+        "filter.formats":      "Формати:",
+        "filter.rating":       "Рейтинг:",
+        "filter.status":       "Статус:",
+        "filter.week":         "Тиждень:",
+        "filter.language":     "Мова інтерфейсу:",
+        "sort.premiere_date":  "Дата прем'єри",
+        "sort.title_uk":       "Назва",
+        "sort.duration":       "Тривалість",
+        "sort.first_seen":     "Додавання",
+        "sort.asc_title":      "За зростанням",
+        "sort.desc_title":     "За спаданням",
+        "week.all":            "Всі",
+        "week.0":              "Цей тиждень",
+        "week.1":              "Наступний тиждень",
+        "week.2":              "Через 2 тижні",
+        "week.later":          "Пізніше",
+        "status_tag.running":  "Йде зараз",
+        "status_tag.today":    "Сьогодні",
+        "status_tag.pre_premiere": "Допрем'єра",
+        "status_tag.upcoming_soon": "Скоро (≤7д)",
+        "status_tag.upcoming": "Пізніше",
+        "card.in_cinemas":     "В прокаті з",
+        "card.premiere":       "Прем'єра",
+        "card.action.en":      "Перемкнути мову назви",
+        "card.action.translit":"Транслітерація → буфер обміну",
+        "card.action.refresh": "Оновити цей фільм",
+        "card.action.open":    "Відкрити на сайті",
+        "card.action.delete":  "Видалити з БД",
+        "empty.title":         "Нічого не знайдено",
+        "empty.sub":           "Спробуйте змінити фільтр або пошуковий запит",
+        "results.found":       "Знайдено:",
+        "results.films":       "фільм",
+        "toast.copied":        "Скопійовано",
+        "toast.refreshed":     "Оновлено",
+        "toast.deleted":       "Видалено",
+        "toast.installed":     "Встановлено",
+        "toast.error":         "Помилка",
+        "modal.status":        "Статус",
+        "modal.premiere":      "Прем'єра",
+        "modal.duration":      "Тривалість",
+        "modal.rating":        "Рейтинг",
+        "modal.section":       "Секція",
+        "modal.first_seen":    "Вперше побачено",
+        "modal.last_seen":     "Востаннє оновлено",
+        "modal.fetched":       "Деталі from",
+        "modal.trailer":       "Трейлер",
+        "modal.dcp":           "DCP статус",
+        "modal.history":       "Історія змін",
+      },
+      ru: {
+        "lang.name":           "Рус",
+        "lang.full":           "Русский",
+        "action.refresh":      "ОБНОВИТЬ",
+        "action.refresh_week": "ОБНОВИТЬ НЕДЕЛЮ",
+        "action.sublime":      "SUBLIME",
+        "action.report":       "ОТЧЁТ",
+        "action.install":      "⬇ Установить",
+        "action.settings":     "Настройки",
+        "timer.uptime":        "Uptime",
+        "timer.next_refresh":  "Следующее обновление",
+        "status.stable":       "Стабильное состояние",
+        "status.refreshing":   "Обновление…",
+        "status.error":        "Ошибка",
+        "tab.now":             "В кино",
+        "tab.soon":             "Скоро",
+        "tab.all":             "Все",
+        "tab.globally":        "Глобально",
+        "search.placeholder":  "Поиск по названию…",
+        "filter.view":         "Вид:",
+        "filter.grid":         "Сетка",
+        "filter.list":         "Список",
+        "filter.grid_size":    "Сетка:",
+        "filter.sort":         "Сортировка:",
+        "filter.formats":      "Форматы:",
+        "filter.rating":       "Рейтинг:",
+        "filter.status":       "Статус:",
+        "filter.week":         "Неделя:",
+        "filter.language":     "Язык интерфейса:",
+        "sort.premiere_date":  "Дата премьеры",
+        "sort.title_uk":       "Название",
+        "sort.duration":       "Длительность",
+        "sort.first_seen":     "Добавление",
+        "sort.asc_title":      "По возрастанию",
+        "sort.desc_title":     "По убыванию",
+        "week.all":            "Все",
+        "week.0":              "Эта неделя",
+        "week.1":              "Следующая неделя",
+        "week.2":              "Через 2 недели",
+        "week.later":          "Позже",
+        "status_tag.running":  "Идёт сейчас",
+        "status_tag.today":    "Сегодня",
+        "status_tag.pre_premiere": "Допремьера",
+        "status_tag.upcoming_soon": "Скоро (≤7д)",
+        "status_tag.upcoming": "Позже",
+        "card.in_cinemas":     "В прокате с",
+        "card.premiere":       "Премьера",
+        "card.action.en":      "Переключить язык названия",
+        "card.action.translit":"Транслитерация → буфер обмена",
+        "card.action.refresh": "Обновить этот фильм",
+        "card.action.open":    "Открыть на сайте",
+        "card.action.delete":  "Удалить из БД",
+        "empty.title":         "Ничего не найдено",
+        "empty.sub":           "Попробуйте изменить фильтр или поисковый запрос",
+        "results.found":       "Найдено:",
+        "results.films":       "фильм",
+        "toast.copied":        "Скопировано",
+        "toast.refreshed":     "Обновлено",
+        "toast.deleted":       "Удалено",
+        "toast.installed":     "Установлено",
+        "toast.error":         "Ошибка",
+        "modal.status":        "Статус",
+        "modal.premiere":      "Премьера",
+        "modal.duration":      "Длительность",
+        "modal.rating":        "Рейтинг",
+        "modal.section":       "Секция",
+        "modal.first_seen":    "Впервые замечен",
+        "modal.last_seen":     "Последнее обновление",
+        "modal.fetched":       "Детали from",
+        "modal.trailer":       "Трейлер",
+        "modal.dcp":           "DCP статус",
+        "modal.history":       "История изменений",
+      },
+      en: {
+        "lang.name":           "EN",
+        "lang.full":           "English",
+        "action.refresh":      "REFRESH",
+        "action.refresh_week": "REFRESH WEEK",
+        "action.sublime":      "SUBLIME",
+        "action.report":       "REPORT",
+        "action.install":      "⬇ Install",
+        "action.settings":     "Settings",
+        "timer.uptime":        "Uptime",
+        "timer.next_refresh":  "Next refresh",
+        "status.stable":       "Stable",
+        "status.refreshing":   "Refreshing…",
+        "status.error":        "Error",
+        "tab.now":             "Now Showing",
+        "tab.soon":            "Coming Soon",
+        "tab.all":             "All",
+        "tab.globally":        "Globally",
+        "search.placeholder":  "Search by title…",
+        "filter.view":         "View:",
+        "filter.grid":         "Grid",
+        "filter.list":         "List",
+        "filter.grid_size":    "Columns:",
+        "filter.sort":         "Sort:",
+        "filter.formats":      "Formats:",
+        "filter.rating":       "Rating:",
+        "filter.status":       "Status:",
+        "filter.week":         "Week:",
+        "filter.language":     "UI language:",
+        "sort.premiere_date":  "Premiere date",
+        "sort.title_uk":       "Title",
+        "sort.duration":       "Duration",
+        "sort.first_seen":     "Added",
+        "sort.asc_title":      "Ascending",
+        "sort.desc_title":     "Descending",
+        "week.all":            "All",
+        "week.0":              "This week",
+        "week.1":              "Next week",
+        "week.2":              "In 2 weeks",
+        "week.later":          "Later",
+        "status_tag.running":  "Now playing",
+        "status_tag.today":    "Today",
+        "status_tag.pre_premiere": "Pre-premiere",
+        "status_tag.upcoming_soon": "Soon (≤7d)",
+        "status_tag.upcoming": "Later",
+        "card.in_cinemas":     "In cinemas since",
+        "card.premiere":       "Premiere",
+        "card.action.en":      "Toggle title language",
+        "card.action.translit":"Transliterate → clipboard",
+        "card.action.refresh": "Refresh this film",
+        "card.action.open":    "Open on site",
+        "card.action.delete":  "Delete from DB",
+        "empty.title":         "Nothing found",
+        "empty.sub":           "Try changing filter or search query",
+        "results.found":       "Found:",
+        "results.films":       "film",
+        "toast.copied":        "Copied",
+        "toast.refreshed":     "Refreshed",
+        "toast.deleted":       "Deleted",
+        "toast.installed":     "Installed",
+        "toast.error":         "Error",
+        "modal.status":        "Status",
+        "modal.premiere":      "Premiere",
+        "modal.duration":      "Duration",
+        "modal.rating":        "Rating",
+        "modal.section":       "Section",
+        "modal.first_seen":    "First seen",
+        "modal.last_seen":     "Last updated",
+        "modal.fetched":       "Details from",
+        "modal.trailer":       "Trailer",
+        "modal.dcp":           "DCP status",
+        "modal.history":       "Change history",
+      },
+    };
+
+    let uiLang = 'uk';
+    function t(key) {
+      const pack = I18N[uiLang] || I18N.uk;
+      return pack[key] ?? I18N.uk[key] ?? key;
+    }
+
+    // Apply all static [data-i18n] and [data-i18n-title] attrs to current uiLang.
+    function applyI18n() {
+      document.documentElement.setAttribute('lang', uiLang);
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.setAttribute('title', t(el.dataset.i18nTitle));
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder));
+      });
+      // Re-render dynamic content that contains i18n strings inside JS.
+      if (typeof render === 'function' && allMovies && allMovies.length) render();
+      if (typeof rebuildFilterChips === 'function') rebuildFilterChips();
+    }
+
+    function setUiLanguage(lang) {
+      uiLang = ['uk', 'ru', 'en'].includes(lang) ? lang : 'uk';
+      document.querySelectorAll('#lang-switch button').forEach(b =>
+        b.classList.toggle('active', b.dataset.lang === uiLang));
+      applyI18n();
+      if (hasBridge()) saveSetting('ui_lang', uiLang);
+      else { try { localStorage.setItem('pk_ui_lang', uiLang); } catch {} }
+    }
+
+    // ─── Ukrainian → Latin transliteration ────────────────────────────────────
+    // Uses the official Ukrainian national transliteration (Cabinet of Ministers
+    // Resolution #55, 2010 — used on modern passports). Context-sensitive rules
+    // for Є/Ї/Й/Ю/Я at word start vs mid-word.
+    const UK_TRANSLIT_START = {
+      'Є':'Ye','Ї':'Yi','Й':'Y','Ю':'Yu','Я':'Ya',
+      'є':'ye','ї':'yi','й':'y','ю':'yu','я':'ya',
+    };
+    const UK_TRANSLIT_MID = {
+      'Є':'Ie','Ї':'I','Й':'I','Ю':'Iu','Я':'Ia',
+      'є':'ie','ї':'i','й':'i','ю':'iu','я':'ia',
+    };
+    const UK_TRANSLIT_ALWAYS = {
+      'А':'A','Б':'B','В':'V','Г':'H','Ґ':'G','Д':'D','Е':'E','Ж':'Zh','З':'Z',
+      'И':'Y','І':'I','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R',
+      'С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Shch',
+      'Ь':'','Ю':'Yu','Я':'Ya',
+      'а':'a','б':'b','в':'v','г':'h','ґ':'g','д':'d','е':'e','ж':'zh','з':'z',
+      'и':'y','і':'i','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+      'с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch',
+      'ь':'',"'":'',"’":'',
+    };
+    // ЗГ → Zgh, digraph exception (rule 15).
+    function transliterateUk(str) {
+      if (!str) return '';
+      let out = '';
+      const chars = Array.from(str);
+      for (let i = 0; i < chars.length; i++) {
+        const ch = chars[i];
+        const prev = i > 0 ? chars[i - 1] : '';
+        const isBoundary = !prev || /[\s\-—–‒\(\[\{"'«»„"]/.test(prev);
+
+        // Digraph: зг → zgh / Зг → Zgh
+        if ((ch === 'з' || ch === 'З') && (chars[i + 1] === 'г' || chars[i + 1] === 'Г')) {
+          out += ch === 'З' ? 'Zgh' : 'zgh';
+          i++;
+          continue;
+        }
+        if (UK_TRANSLIT_START.hasOwnProperty(ch)) {
+          out += isBoundary ? UK_TRANSLIT_START[ch] : UK_TRANSLIT_MID[ch];
+          continue;
+        }
+        if (UK_TRANSLIT_ALWAYS.hasOwnProperty(ch)) {
+          out += UK_TRANSLIT_ALWAYS[ch];
+          continue;
+        }
+        out += ch;  // ASCII, digits, Latin, punctuation — pass through
+      }
+      return out;
+    }
+
+    async function copyTranslit(id, btn) {
+      const m = allMovies.find(x => x.movie_id === id);
+      if (!m) return;
+      const src = m.title_uk || m.title_original || '';
+      const result = transliterateUk(src);
+      if (!result) { showToast('Немає назви', '', 'error'); return; }
+      try {
+        await navigator.clipboard.writeText(result);
+        showToast('Скопійовано', result, 'success');
+        if (btn) {
+          const prev = btn.textContent;
+          btn.textContent = '✓';
+          btn.classList.add('success');
+          setTimeout(() => { btn.textContent = prev; btn.classList.remove('success'); }, 900);
+        }
+      } catch (err) {
+        // Clipboard API unavailable (e.g. file:// context) → fall back to textarea hack
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = result; ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+          showToast('Скопійовано', result, 'success');
+        } catch {
+          showToast('Помилка копіювання', String(err.message || err), 'error');
+        }
+      }
+    }
+
     // ─── Play status (running / today / pre_premiere / upcoming_soon / upcoming)
     // Derived from section + premiere_date + is_pre_premiere. Purely client-side.
     function computeStatus(m) {
@@ -2118,14 +2548,16 @@
       const formatChips = (m.formats || []).map(f => `<span class="${formatBadgeClass(f)}">${escHtml(f)}</span>`).join('');
       const allChips = genreChips + formatChips;
 
-      const cardActions = hasBridge() ? `
+      const cardActions = `
         <div class="card-actions">
-          <button class="card-action-btn" data-card-act="en"      data-id="${m.movie_id}" title="Перемкнути мову назви">EN</button>
-          <button class="card-action-btn" data-card-act="refresh" data-id="${m.movie_id}" title="Оновити цей фільм">↻</button>
-          <button class="card-action-btn" data-card-act="open"    data-id="${m.movie_id}" title="Відкрити на сайті">↗</button>
+          <button class="card-action-btn" data-card-act="en"       data-id="${m.movie_id}" title="Перемкнути мову назви (UK ↔ original)">EN</button>
+          <button class="card-action-btn" data-card-act="translit" data-id="${m.movie_id}" title="Транслітерація назви → буфер обміну">N</button>
+          ${hasBridge() ? `
+          <button class="card-action-btn" data-card-act="refresh"  data-id="${m.movie_id}" title="Оновити цей фільм">↻</button>
+          <button class="card-action-btn" data-card-act="open"     data-id="${m.movie_id}" title="Відкрити на сайті">↗</button>
           <button class="card-action-btn danger" data-card-act="delete" data-id="${m.movie_id}" data-confirm="${pendingDeleteId === m.movie_id ? '1' : '0'}"
-                  title="${pendingDeleteId === m.movie_id ? 'Натисніть ще раз для підтвердження' : 'Видалити з БД'}">${pendingDeleteId === m.movie_id ? '✓?' : '×'}</button>
-        </div>` : '';
+                  title="${pendingDeleteId === m.movie_id ? 'Натисніть ще раз для підтвердження' : 'Видалити з БД'}">${pendingDeleteId === m.movie_id ? '✓?' : '×'}</button>` : ''}
+        </div>`;
 
       return `
         <div class="movie-card" data-id="${m.movie_id}" data-url="${escAttr(m.url)}" title="${escAttr(title)}">
@@ -2151,7 +2583,7 @@
                 <span>${duration}</span>
               </div>` : ''}
             ${allChips ? `<div class="chips">${allChips}</div>` : ''}
-            ${buildDcpStrip(m.dcp)}
+            ${buildDcpStrip(m)}
           </div>
         </div>`;
     }
@@ -2186,16 +2618,18 @@
       if (duration) metaLines.push(`<span>${escHtml(duration)}</span>`);
       const metaHtml = metaLines.length ? metaLines.join('<br>') : '<span style="color:var(--text-faint);">—</span>';
 
-      const actions = hasBridge() ? `
+      const actions = `
         <div class="movie-row__actions">
-          <button class="card-action-btn" data-card-act="en"      data-id="${m.movie_id}" title="Мова назви">EN</button>
-          <button class="card-action-btn" data-card-act="refresh" data-id="${m.movie_id}" title="Оновити">↻</button>
-          <button class="card-action-btn" data-card-act="open"    data-id="${m.movie_id}" title="Сайт">↗</button>
+          <button class="card-action-btn" data-card-act="en"       data-id="${m.movie_id}" title="Мова назви">EN</button>
+          <button class="card-action-btn" data-card-act="translit" data-id="${m.movie_id}" title="Транслітерація → буфер">N</button>
+          ${hasBridge() ? `
+          <button class="card-action-btn" data-card-act="refresh"  data-id="${m.movie_id}" title="Оновити">↻</button>
+          <button class="card-action-btn" data-card-act="open"     data-id="${m.movie_id}" title="Сайт">↗</button>
           <button class="card-action-btn danger" data-card-act="delete" data-id="${m.movie_id}" data-confirm="${pendingDeleteId === m.movie_id ? '1' : '0'}"
-                  title="${pendingDeleteId === m.movie_id ? 'Підтвердити' : 'Видалити'}">${pendingDeleteId === m.movie_id ? '✓?' : '×'}</button>
-        </div>` : '';
+                  title="${pendingDeleteId === m.movie_id ? 'Підтвердити' : 'Видалити'}">${pendingDeleteId === m.movie_id ? '✓?' : '×'}</button>` : ''}
+        </div>`;
 
-      const dcpStrip = m.dcp ? buildDcpStrip(m.dcp) : '';
+      const dcpStrip = buildDcpStrip(m);
 
       return `
         <div class="movie-row" data-id="${m.movie_id}" data-url="${escAttr(m.url)}" title="${escAttr(title)}">
@@ -2217,8 +2651,48 @@
         </div>`;
     }
 
-    function buildDcpStrip(dcp) {
-      if (!dcp) return `<div class="dcp-strip"><span class="dcp-strip__label">DCP:</span> <span style="color:var(--text-faint);">н/д</span></div>`;
+    // ─── DCP overrides (client-side edits, persisted in localStorage) ─────────
+    const DCP_OVERRIDES_KEY = 'pk_dcp_overrides';
+    const NO_KEYS_SENTINEL = 'ключі не потрібні';
+    function loadDcpOverrides() {
+      try { return JSON.parse(localStorage.getItem(DCP_OVERRIDES_KEY) || '{}') || {}; }
+      catch { return {}; }
+    }
+    function getDcpOverride(id) { return loadDcpOverrides()[id] || {}; }
+    function setDcpOverride(id, patch) {
+      const all = loadDcpOverrides();
+      all[id] = { ...(all[id] || {}), ...patch };
+      try { localStorage.setItem(DCP_OVERRIDES_KEY, JSON.stringify(all)); } catch {}
+    }
+
+    // Smart "digits-as-mm:ss" formatter. "513" → "5:13", "1032" → "10:32".
+    function formatMMSS(raw) {
+      const d = (raw || '').replace(/\D/g, '').slice(0, 4);
+      if (!d) return '';
+      if (d.length <= 2) return d;
+      return d.slice(0, d.length - 2) + ':' + d.slice(-2);
+    }
+    // Smart "YYYY-MM-DD HH:MM" formatter from up to 12 digits.
+    function formatDateTime(raw) {
+      if (raw === NO_KEYS_SENTINEL) return raw;
+      const d = (raw || '').replace(/\D/g, '').slice(0, 12);
+      if (!d) return '';
+      let out = d.slice(0, 4);
+      if (d.length > 4)  out += '-' + d.slice(4, 6);
+      if (d.length > 6)  out += '-' + d.slice(6, 8);
+      if (d.length > 8)  out += ' ' + d.slice(8, 10);
+      if (d.length > 10) out += ':' + d.slice(10, 12);
+      return out;
+    }
+
+    function buildDcpStrip(m) {
+      const id = m && m.movie_id;
+      const dcp = m && m.dcp;
+      const over = id ? getDcpOverride(id) : {};
+      // Effective status: override wins; synthetic "ready" when user hit the check.
+      const baseStatus = dcp ? dcp.status : 'pending';
+      const status = over.status || baseStatus;
+
       const presets = {
         no_keys_needed: { icon: '🔓', label: 'Ключі не потрібні' },
         pending:        { icon: '⏳', label: 'Очікування' },
@@ -2226,17 +2700,48 @@
         key_ready:      { icon: '🔑', label: 'DCP + ключ готові' },
         ready:          { icon: '✅', label: 'Готово' },
       };
-      const p = presets[dcp.status] || { icon: '?', label: dcp.status };
+      const p = presets[status] || { icon: '?', label: status };
       let timer = '';
-      if (dcp.status === 'waiting_key' && dcp.arrived_at) {
+      if (status === 'waiting_key' && dcp && dcp.arrived_at) {
         timer = elapsedSince(dcp.arrived_at);
       }
-      return `
-        <div class="dcp-strip status-${dcp.status}">
-          <span class="dcp-strip__icon">${p.icon}</span>
-          <span class="dcp-strip__label">${p.label}</span>
-          ${timer ? `<span class="dcp-strip__timer">${timer}</span>` : ''}
-        </div>`;
+
+      const wait = over.wait_mmss || '';
+      const keyDt = over.key_datetime || '';
+      const hasKey = keyDt && keyDt !== '' ;
+      const isNoKeys = keyDt === NO_KEYS_SENTINEL;
+      const readyFlag = !!wait && !!keyDt && !isNoKeys;
+
+      const stripHtml = dcp
+        ? `<div class="dcp-strip status-${status}">
+             <span class="dcp-strip__icon">${p.icon}</span>
+             <span class="dcp-strip__label">${escHtml(p.label)}</span>
+             ${timer ? `<span class="dcp-strip__timer">${timer}</span>` : ''}
+           </div>`
+        : `<div class="dcp-strip"><span class="dcp-strip__label">DCP:</span> <span style="color:var(--text-faint);">н/д</span></div>`;
+
+      // Edit row — always present so the user can fill info even when parser missed it.
+      const editHtml = id ? `
+        <div class="dcp-edit" data-id="${escAttr(id)}">
+          <input type="text" inputmode="numeric" maxlength="5"
+                 class="dcp-edit__input ${wait ? 'filled' : ''}"
+                 data-dcp-field="wait"
+                 value="${escAttr(wait)}"
+                 placeholder="mm:ss"
+                 title="Тривалість / очікування у форматі мм:сс (вводь цифрами, напр. 513 → 5:13)"/>
+          <input type="text" maxlength="16"
+                 class="dcp-edit__input ${keyDt ? 'filled' : ''} ${isNoKeys ? 'no-keys' : ''}"
+                 data-dcp-field="key"
+                 value="${escAttr(keyDt)}"
+                 placeholder="YYYY-MM-DD HH:MM"
+                 title="Дата й час отримання ключа"/>
+          <button type="button"
+                  class="dcp-edit__check ${readyFlag || isNoKeys ? 'ready' : ''}"
+                  data-dcp-field="check"
+                  title="Позначити як готове · або «ключі не потрібні», якщо дата порожня">✓</button>
+        </div>` : '';
+
+      return stripHtml + editHtml;
     }
 
     function elapsedSince(iso) {
@@ -2257,10 +2762,11 @@
     function escAttr(s) { return escHtml(s).replace(/`/g, '&#96;'); }
 
     function attachCardHandlers() {
-      document.querySelectorAll('.movie-card').forEach(card => {
-        const id = card.dataset.id;
-        card.addEventListener('click', (e) => {
+      document.querySelectorAll('.movie-card, .movie-row').forEach(el => {
+        const id = el.dataset.id;
+        el.addEventListener('click', (e) => {
           if (e.target.closest('.card-action-btn')) return;
+          if (e.target.closest('.dcp-edit')) return;
           openModal(id);
         });
       });
@@ -2271,6 +2777,8 @@
           if (cardAct === 'en') {
             if (enTitleCards.has(id)) enTitleCards.delete(id); else enTitleCards.add(id);
             render();
+          } else if (cardAct === 'translit') {
+            await copyTranslit(id, btn);
           } else if (cardAct === 'refresh') {
             await cardRefresh(id, btn);
           } else if (cardAct === 'open') {
@@ -2280,6 +2788,97 @@
             await cardDelete(id);
           }
         });
+      });
+
+      // DCP edit row — mm:ss input, datetime input, green checkmark.
+      document.querySelectorAll('.dcp-edit').forEach(row => {
+        const id = row.dataset.id;
+        const waitEl  = row.querySelector('[data-dcp-field="wait"]');
+        const keyEl   = row.querySelector('[data-dcp-field="key"]');
+        const checkEl = row.querySelector('[data-dcp-field="check"]');
+
+        // Block bubbling: clicks/inputs inside the edit row must not open the modal.
+        row.addEventListener('click', (e) => e.stopPropagation());
+
+        const syncCheck = () => {
+          const filled = !!waitEl.value && !!keyEl.value && keyEl.value !== NO_KEYS_SENTINEL;
+          const noKeys = keyEl.value === NO_KEYS_SENTINEL;
+          checkEl.classList.toggle('ready', filled || noKeys);
+          waitEl.classList.toggle('filled', !!waitEl.value);
+          keyEl.classList.toggle('filled', !!keyEl.value);
+          keyEl.classList.toggle('no-keys', noKeys);
+        };
+
+        // mm:ss smart formatter — "513" → "5:13", "1032" → "10:32".
+        waitEl.addEventListener('input', () => {
+          const caretAtEnd = waitEl.selectionStart === waitEl.value.length;
+          waitEl.value = formatMMSS(waitEl.value);
+          if (caretAtEnd) waitEl.setSelectionRange(waitEl.value.length, waitEl.value.length);
+          syncCheck();
+        });
+        waitEl.addEventListener('blur', () => {
+          setDcpOverride(id, { wait_mmss: waitEl.value });
+        });
+
+        // Date-time smart formatter. User can also type free text (sentinel etc.).
+        keyEl.addEventListener('input', () => {
+          // Don't reformat the sentinel string.
+          if (keyEl.value === NO_KEYS_SENTINEL) return;
+          // If user is typing over the sentinel, assume they want a real date.
+          const caretAtEnd = keyEl.selectionStart === keyEl.value.length;
+          keyEl.value = formatDateTime(keyEl.value);
+          if (caretAtEnd) keyEl.setSelectionRange(keyEl.value.length, keyEl.value.length);
+          syncCheck();
+        });
+        keyEl.addEventListener('focus', () => {
+          // Clear sentinel on focus so user can start typing a real date.
+          if (keyEl.value === NO_KEYS_SENTINEL) {
+            keyEl.value = '';
+            keyEl.classList.remove('no-keys');
+            syncCheck();
+          }
+        });
+        keyEl.addEventListener('blur', () => {
+          setDcpOverride(id, { key_datetime: keyEl.value });
+        });
+
+        // Checkmark behaviour:
+        //   - mm:ss filled, date empty  →  write «ключі не потрібні» into date field
+        //   - both filled                →  toggle ready / not-ready
+        //   - already «ключі не потрібні» → toggle it off
+        checkEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wait = waitEl.value;
+          const key  = keyEl.value;
+
+          if (key === NO_KEYS_SENTINEL) {
+            // Toggle off
+            keyEl.value = '';
+            setDcpOverride(id, { key_datetime: '', status: null });
+            syncCheck();
+            return;
+          }
+          if (wait && !key) {
+            keyEl.value = NO_KEYS_SENTINEL;
+            setDcpOverride(id, { key_datetime: NO_KEYS_SENTINEL, status: 'no_keys_needed' });
+            syncCheck();
+            // Re-render only the strip header for this card to reflect status change.
+            render();
+            return;
+          }
+          if (wait && key && key !== NO_KEYS_SENTINEL) {
+            // Toggle ready
+            const cur = getDcpOverride(id);
+            const wasReady = cur.status === 'ready';
+            setDcpOverride(id, { status: wasReady ? null : 'ready' });
+            render();
+            return;
+          }
+          // Nothing filled → gentle hint.
+          showToast('DCP', 'Заповни mm:ss або дату перед підтвердженням.', 'info');
+        });
+
+        syncCheck();
       });
     }
 
@@ -2792,6 +3391,7 @@ python3 -m http.server 8000</code>
       if (settings.view_mode) { setViewMode(settings.view_mode); }
       if (settings.sort_by) { sortBy = settings.sort_by; byId('sort-by').value = sortBy; }
       if (settings.sort_dir) { setSortDir(settings.sort_dir); }
+      if (settings.ui_lang) { setUiLanguage(settings.ui_lang); }
 
       // app info block
       byId('app-info').innerHTML = appInfo.name ? `
@@ -3003,12 +3603,16 @@ python3 -m http.server 8000</code>
         } catch (err) { console.error('bridge init', err); }
         if (settings.theme) document.documentElement.setAttribute('data-theme', settings.theme);
       } else {
-        // Browser / PWA mode — rehydrate view preference from localStorage.
+        // Browser / PWA mode — rehydrate prefs from localStorage.
         try {
           const stored = localStorage.getItem('pk_view_mode');
           if (stored === 'list' || stored === 'grid') setViewMode(stored);
+          const storedLang = localStorage.getItem('pk_ui_lang');
+          if (storedLang) setUiLanguage(storedLang);
         } catch {}
       }
+      // Always apply i18n at startup (UK default, or the restored choice).
+      applyI18n();
       applySettingsToUi();
       await loadData();
     })();
