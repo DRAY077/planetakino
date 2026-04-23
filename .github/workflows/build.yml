@@ -8,6 +8,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# softprops/action-gh-release needs contents:write to attach assets to a release.
+# Default GITHUB_TOKEN is read-only for contents; grant write at workflow level.
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
